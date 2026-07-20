@@ -20,12 +20,22 @@ const MENU_ITEMS = [
   { text: "Profile", path: "/profile", icon: <User size={20} /> },
 ];
 
-const Sidebar = ({ user, isCollapsed, setIsCollapsed }) => {
+const Sidebar = ({
+  user,
+  isCollapsed,
+  setIsCollapsed,
+  mobileOpen: mobileOpenProp,
+  setMobileOpen: setMobileOpenProp,
+}) => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const sidebarRef = useRef(null);
 
-  const [mobileOpen, setMobileOpen] = useState(false);
+  // Falls back to internal state if the parent doesn't control this
+  const [internalMobileOpen, setInternalMobileOpen] = useState(false);
+  const mobileOpen =
+    mobileOpenProp !== undefined ? mobileOpenProp : internalMobileOpen;
+  const setMobileOpen = setMobileOpenProp || setInternalMobileOpen;
   const [activeHover, setActiveHover] = useState(null);
 
   const { name: username = "User", email = "user@example.com" } = user || {};

@@ -3,15 +3,27 @@ import { loginStyles } from "../assets/dummyStyles";
 import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useForm } from "react-hook-form";
 
 const Login = ({ onLogin, API_URL = "https://expense-tracker-4gx0.onrender.com" }) => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    mode: "onBlur",
+    defaultValues: {
+      email: "",
+      password: "",
+      rememberMe: false,
+    },
+  });
 
   // to fetch profile
   const fetchProfile = async (token) => {
@@ -22,7 +34,7 @@ const Login = ({ onLogin, API_URL = "https://expense-tracker-4gx0.onrender.com" 
     return res.data;
   };
 
-  const persistAuth = (profile, token) => {
+  const persistAuth = (profile, token, rememberMe) => {
     const storage = rememberMe ? localStorage : sessionStorage;
     try {
       if (token) storage.setItem("token", token);
@@ -33,8 +45,7 @@ const Login = ({ onLogin, API_URL = "https://expense-tracker-4gx0.onrender.com" 
   };
 
   // to login
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const onSubmit = async ({ email, password, rememberMe }) => {
     setIsLoading(true);
     setError("");
 
@@ -69,7 +80,7 @@ const Login = ({ onLogin, API_URL = "https://expense-tracker-4gx0.onrender.com" 
       }
 
       if (!profile) profile = { email };
-      persistAuth(profile, token);
+      persistAuth(profile, token, rememberMe);
 
       if (typeof onLogin === "function") {
         try {
@@ -81,7 +92,7 @@ const Login = ({ onLogin, API_URL = "https://expense-tracker-4gx0.onrender.com" 
       } else {
         navigate("/");
       }
-      setPassword("");
+      reset({ email, password: "", rememberMe });
     } catch (err) {
       console.error("Login error:", err?.response || err);
       const serverMsg =
@@ -129,7 +140,7 @@ const Login = ({ onLogin, API_URL = "https://expense-tracker-4gx0.onrender.com" 
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit(onSubmit)} noValidate>
             <div className=" mb-6">
               <label htmlFor="email" className={loginStyles.label}>
                 Email Address
@@ -139,15 +150,24 @@ const Login = ({ onLogin, API_URL = "https://expense-tracker-4gx0.onrender.com" 
                   <Mail className=" w-5 h-5" />
                 </div>
                 <input
-                  type="email"
+                  type="text"
                   id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
                   className={loginStyles.input}
                   placeholder="your@example.com"
-                  required
+                  {...register("email", {
+                    required: "Email is required",
+                    pattern: {
+                      value: /\S+@\S+\.\S+/,
+                      message: "Email is invalid",
+                    },
+                  })}
                 />
               </div>
+              {errors.email && (
+                <p className={loginStyles.fieldError || "mt-1 text-sm text-red-600"}>
+                  {errors.email.message}
+                </p>
+              )}
             </div>
 
             <div className=" mb-6">
@@ -161,11 +181,11 @@ const Login = ({ onLogin, API_URL = "https://expense-tracker-4gx0.onrender.com" 
                 <input
                   type={showPassword ? "text" : "password"}
                   id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
                   className={loginStyles.passwordInput}
                   placeholder="●●●●●●"
-                  required
+                  {...register("password", {
+                    required: "Password is required",
+                  })}
                 />
                 <button
                   type="button"
@@ -179,16 +199,19 @@ const Login = ({ onLogin, API_URL = "https://expense-tracker-4gx0.onrender.com" 
                   )}
                 </button>
               </div>
+              {errors.password && (
+                <p className={loginStyles.fieldError || "mt-1 text-sm text-red-600"}>
+                  {errors.password.message}
+                </p>
+              )}
             </div>
 
             <div className={loginStyles.checkboxContainer}>
               <input
                 type="checkbox"
                 id="remember"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
                 className={loginStyles.checkbox}
-                required
+                {...register("rememberMe")}
               />
               <label htmlFor="remember" className={loginStyles.checkboxLabel}>
                 Remember Me

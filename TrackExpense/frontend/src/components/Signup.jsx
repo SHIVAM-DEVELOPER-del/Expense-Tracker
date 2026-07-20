@@ -3,16 +3,29 @@ import { signupStyles } from "../assets/dummyStyles";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { ArrowLeft, Eye, EyeOff, Lock, Mail, User } from "lucide-react";
+import { useForm } from "react-hook-form";
 
 const Signup = ({ API_URL = "https://expense-tracker-4gx0.onrender.com", onSignup }) => {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const [errors, setErrors] = useState({});
+  const [apiError, setApiError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError,
+    formState: { errors },
+  } = useForm({
+    mode: "onBlur",
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      rememberMe: false,
+    },
+  });
 
   // to fetch profile
   const fetchProfile = async (token) => {
@@ -23,7 +36,7 @@ const Signup = ({ API_URL = "https://expense-tracker-4gx0.onrender.com", onSignu
     return res.data;
   };
 
-  const persistAuth = (profile, token) => {
+  const persistAuth = (profile, token, rememberMe) => {
     const storage = rememberMe ? localStorage : sessionStorage;
     try {
       if (token) storage.setItem("token", token);
@@ -33,34 +46,9 @@ const Signup = ({ API_URL = "https://expense-tracker-4gx0.onrender.com", onSignu
     }
   };
 
-  //   to validate that all fields are filled by user or not
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (!name.trim()) {
-      newErrors.name = "Name is required";
-    }
-    if (!email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = "Email is invalid";
-    }
-    if (!password) {
-      newErrors.password = "Password is required";
-    } else if (password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
   //   to signup
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErrors({});
-    if (!validateForm()) return;
-
+  const onSubmit = async ({ name, email, password, rememberMe }) => {
+    setApiError("");
     setIsLoading(true);
     try {
       const res = await axios.post(
@@ -89,7 +77,7 @@ const Signup = ({ API_URL = "https://expense-tracker-4gx0.onrender.com", onSignu
       }
 
       if (!profile) profile = { name, email };
-      persistAuth(profile, token);
+      persistAuth(profile, token, rememberMe);
       if (typeof onSignup === "function") {
         try {
           onSignup(profile, rememberMe, token);
@@ -100,15 +88,23 @@ const Signup = ({ API_URL = "https://expense-tracker-4gx0.onrender.com", onSignu
       } else {
         navigate("/");
       }
-      setPassword("");
+      reset({ name, email, password: "", rememberMe });
     } catch (err) {
       console.error("Signup error:", err?.response || err);
       if (err.response?.data?.errors) {
-        setErrors(err.response.data.errors);
+        const serverErrors = err.response.data.errors;
+        Object.entries(serverErrors).forEach(([field, message]) => {
+          if (["name", "email", "password"].includes(field)) {
+            setError(field, { type: "server", message });
+          }
+        });
+        if (!("name" in serverErrors) && !("email" in serverErrors) && !("password" in serverErrors)) {
+          setApiError("Please check the highlighted fields and try again.");
+        }
       } else if (err.response?.data?.message) {
-        setErrors({ api: err.response.data.message });
+        setApiError(err.response.data.message);
       } else {
-        setErrors({ api: err.message || "An unexpected error occurred" });
+        setApiError(err.message || "An unexpected error occurred");
       }
     } finally {
       setIsLoading(false);
@@ -136,9 +132,9 @@ const Signup = ({ API_URL = "https://expense-tracker-4gx0.onrender.com", onSignu
         </div>
 
         <div className={signupStyles.formContainer}>
-          {errors.api && <p className={signupStyles.apiError}>{errors.api}</p>}
+          {apiError && <p className={signupStyles.apiError}>{apiError}</p>}
 
-          <form onSubmit={handleSubmit} noValidate>
+          <form onSubmit={handleSubmit(onSubmit)} noValidate>
             <div className=" mb-6">
               <label htmlFor="name" className={signupStyles.label}>
                 Full Name
@@ -150,17 +146,20 @@ const Signup = ({ API_URL = "https://expense-tracker-4gx0.onrender.com", onSignu
                 <input
                   type="text"
                   id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
                   className={`${signupStyles.input} ${
                     errors.name ? "border-red-300" : "border-gray-200"
                   }`}
                   placeholder="John Doe"
+                  {...register("name", {
+                    required: "Name is required",
+                    validate: (value) =>
+                      value.trim().length > 0 || "Name is required",
+                  })}
                 />
               </div>
 
               {errors.name && (
-                <p className={signupStyles.fieldError}>{errors.name}</p>
+                <p className={signupStyles.fieldError}>{errors.name.message}</p>
               )}
             </div>
 
@@ -173,19 +172,24 @@ const Signup = ({ API_URL = "https://expense-tracker-4gx0.onrender.com", onSignu
                   <Mail className=" w-5 h-5" />
                 </div>
                 <input
-                  type="email"
+                  type="text"
                   id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
                   className={`${signupStyles.input} ${
                     errors.email ? "border-red-300" : "border-gray-200"
                   }`}
                   placeholder="your@example.com"
+                  {...register("email", {
+                    required: "Email is required",
+                    pattern: {
+                      value: /\S+@\S+\.\S+/,
+                      message: "Email is invalid",
+                    },
+                  })}
                 />
               </div>
 
               {errors.email && (
-                <p className={signupStyles.fieldError}>{errors.email}</p>
+                <p className={signupStyles.fieldError}>{errors.email.message}</p>
               )}
             </div>
 
@@ -200,12 +204,17 @@ const Signup = ({ API_URL = "https://expense-tracker-4gx0.onrender.com", onSignu
                 <input
                   type={showPassword ? "text" : "password"}
                   id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
                   className={`${signupStyles.passwordInput} ${
                     errors.password ? "border-red-300" : "border-gray-200"
                   }`}
                   placeholder="●●●●●●"
+                  {...register("password", {
+                    required: "Password is required",
+                    minLength: {
+                      value: 6,
+                      message: "Password must be at least 6 characters",
+                    },
+                  })}
                 />
 
                 <button
@@ -222,7 +231,7 @@ const Signup = ({ API_URL = "https://expense-tracker-4gx0.onrender.com", onSignu
               </div>
 
               {errors.password && (
-                <p className={signupStyles.fieldError}>{errors.password}</p>
+                <p className={signupStyles.fieldError}>{errors.password.message}</p>
               )}
             </div>
 
@@ -230,9 +239,8 @@ const Signup = ({ API_URL = "https://expense-tracker-4gx0.onrender.com", onSignu
               <input
                 type="checkbox"
                 id="remember"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
                 className={signupStyles.checkbox}
+                {...register("rememberMe")}
               />
 
               <label htmlFor="remember" className={signupStyles.checkboxLabel}>
@@ -266,7 +274,7 @@ const Signup = ({ API_URL = "https://expense-tracker-4gx0.onrender.com", onSignu
                     <path
                       className="opacity-75"
                       fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2-647z"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
                   Creating account...

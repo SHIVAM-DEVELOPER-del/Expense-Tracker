@@ -78,6 +78,7 @@ const Layout = ({ onLogout, user }) => {
   const [showAllTransactions, setShowAllTransactions] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // to fetch the transaction from the server side
   const fetchTransactions = async () => {
@@ -305,11 +306,17 @@ const Layout = ({ onLogout, user }) => {
 
   return (
     <div className={styles.layout.root}>
-      <Navbar user={user} onLogout={onLogout} />
+      <Navbar
+        user={user}
+        onLogout={onLogout}
+        onMenuClick={() => setMobileMenuOpen(true)}
+      />
       <Sidebar
         user={user}
         isCollapsed={sidebarCollapsed}
         setIsCollapsed={setSidebarCollapsed}
+        mobileOpen={mobileMenuOpen}
+        setMobileOpen={setMobileMenuOpen}
       />
       <div className={styles.layout.mainContainer(sidebarCollapsed)}>
         <div className={styles.header.container}>

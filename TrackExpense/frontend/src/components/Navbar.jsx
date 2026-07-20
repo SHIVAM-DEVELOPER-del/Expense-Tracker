@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import { navbarStyles } from "../assets/dummyStyles";
 import img1 from "../assets/logo.png";
-import { ChevronDown, LogOut, User } from "lucide-react";
+import { ChevronDown, LogOut, Menu, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 const BASE_URL = "https://expense-tracker-4gx0.onrender.com";
 
-const Navbar = ({ user: propUser, onLogout }) => {
+const Navbar = ({ user: propUser, onLogout, onMenuClick }) => {
   const navigate = useNavigate();
   const menuRef = useRef();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -63,15 +63,26 @@ const Navbar = ({ user: propUser, onLogout }) => {
   return (
     <header className={navbarStyles.header}>
       <div className={navbarStyles.container}>
-        {/* logo */}
-        <div
-          onClick={() => navigate("/")}
-          className={navbarStyles.logoContainer}
-        >
-          <div className={navbarStyles.logoImage}>
-            <img src={img1} alt="logo" />
+        <div className="flex items-center gap-2">
+          {/* hamburger menu - mobile & tablet only */}
+          <button
+            onClick={onMenuClick}
+            aria-label="Open menu"
+            className="lg:hidden p-2 -ml-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+
+          {/* logo */}
+          <div
+            onClick={() => navigate("/")}
+            className={navbarStyles.logoContainer}
+          >
+            <div className={navbarStyles.logoImage}>
+              <img src={img1} alt="logo" />
+            </div>
+            <span className={navbarStyles.logoText}>Expense Tracker</span>
           </div>
-          <span className={navbarStyles.logoText}>Expense Tracker</span>
         </div>
 
         {/* if the user is present */}
